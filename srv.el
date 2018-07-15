@@ -30,7 +30,6 @@
 ;;; Code:
 
 (require 'dns)
-(eval-when-compile (require 'cl))
 
 (defun srv-lookup (target)
   "Perform SRV lookup of TARGET and return list of connection candidiates.
@@ -68,7 +67,7 @@ of the list.  The list is empty if no SRV records were found."
 	      weight-order)
 	  ;; Assign running sum of weight to each entry.
 	  (dolist (a (cdr p))
-	    (incf weight-acc (cadr (assq 'weight a)))
+	    (cl-incf weight-acc (cadr (assq 'weight a)))
 	    (push (cons weight-acc a) weight-order))
 	  (setq weight-order (nreverse weight-order))
 
@@ -77,9 +76,9 @@ of the list.  The list is empty if no SRV records were found."
 	  ;; running sum is greater than or equal to this number.
 	  (while weight-order
 	    (let* ((r (random (1+ weight-acc)))
-		   (next-entry (dolist (a weight-order)
+		   (next-entry (cl-dolist (a weight-order)
 				 (if (>= (car a) r)
-				     (return a)))))
+				     (cl-return a)))))
 	      (push (cdr next-entry) weighted-result)
 	      (setq weight-order
 		    (delq next-entry weight-order))))))

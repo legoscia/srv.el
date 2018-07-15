@@ -1,10 +1,12 @@
 ;;; srv.el --- perform SRV DNS requests
 
-;; Copyright (C) 2005, 2007  Magnus Henoch
+;; Copyright (C) 2005, 2007, 2018  Magnus Henoch
 
-;; Author: Magnus Henoch <mange@freemail.hu>
+;; Author: Magnus Henoch <magnus.henoch@gmail.com>
 ;; Keywords: comm
-;; Version: 0.1
+;; Version: 0.2
+;; Package-Requires: ((emacs "24.3"))
+;; URL: https://github.com/legoscia/srv.el
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -23,14 +25,28 @@
 
 ;;; Commentary:
 
-;; This code implements RFC 2782 (SRV records).  It requires a version
-;; of dns.el that supports SRV records; look in Gnus CVS if you don't
-;; have one.
+;; This code implements RFC 2782 (SRV records).  It was originally
+;; written for jabber.el <http://emacs-jabber.sf.net>, but is now a
+;; separate package.
+;;
+;; It is used to look up hostname and port for a service at a specific
+;; domain.  There might be multiple results, and the caller is supposed
+;; to attempt to connect to each hostname+port in turn.  For example,
+;; to find the XMPP client service for the domain gmail.com:
+;;
+;; (srv-lookup "_xmpp-client._tcp.gmail.com")
+;; -> (("xmpp.l.google.com" . 5222)
+;;     ("alt3.xmpp.l.google.com" . 5222)
+;;     ("alt4.xmpp.l.google.com" . 5222)
+;;     ("alt1.xmpp.l.google.com" . 5222)
+;;     ("alt2.xmpp.l.google.com" . 5222))
+
 
 ;;; Code:
 
 (require 'dns)
 
+;;;###autoload
 (defun srv-lookup (target)
   "Perform SRV lookup of TARGET and return list of connection candidiates.
 TARGET is a string of the form \"_Service._Proto.Name\".
@@ -58,7 +74,7 @@ of the list.  The list is empty if no SRV records were found."
 	    (push (cons priority (list a)) answers-by-priority))))
       ;; Sort by priority.
       (setq answers-by-priority
-	    (sort answers-by-priority 
+	    (sort answers-by-priority
 		  #'(lambda (a b) (< (car a) (car b)))))
       ;; Randomize by weight within priority groups.  See
       ;; algorithm in RFC 2782.
@@ -88,6 +104,8 @@ of the list.  The list is empty if no SRV records were found."
 	      (nreverse weighted-result)))))
 
 (defun srv--dns-query (target)
+  "Perform DNS query for TARGET.
+On Windows, call `srv--nslookup'; on all other systems, call `dns-query'."
   ;; dns-query uses UDP, but that is not supported on Windows...
   (if (featurep 'make-network-process '(:type datagram))
       (dns-query target 'SRV t)
@@ -95,6 +113,7 @@ of the list.  The list is empty if no SRV records were found."
     (srv--nslookup target)))
 
 (defun srv--nslookup (target)
+  "Call the `nslookup' program to make an SRV query for TARGET."
   (with-temp-buffer
     (call-process "nslookup" nil t nil "-type=srv" target)
     (goto-char (point-min))
@@ -120,5 +139,4 @@ of the list.  The list is empty if no SRV records were found."
       (list (list 'answers results)))))
 
 (provide 'srv)
-;; arch-tag: b43358f2-d241-11da-836e-000a95c2fcd0
 ;;; srv.el ends here
